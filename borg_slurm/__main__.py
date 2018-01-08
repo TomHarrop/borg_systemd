@@ -176,27 +176,31 @@ def send_borg_results(borg_results, subject, text=None):
     '''
     with tempfile.TemporaryDirectory() as tmpdir:
         attachment_list = []
-        if borg_results['err_bytes']:
-            errfile = os.path.join(tmpdir, 'borgbackup.err.txt')
-            attachment_list.append(errfile)
-            with open(errfile, 'wb') as f:
-                f.write(borg_results['err_bytes'])
-        if borg_results['out_bytes']:
-            outfile = os.path.join(tmpdir, 'borgbackup.out.txt')
-            attachment_list.append(outfile)
-            with open(outfile, 'wb') as f:
-                f.write(borg_results['out_bytes'])
+        if 'err_bytes' in borg_results:
+            if len(borg_results['err_bytes'] > 0):
+                errfile = os.path.join(tmpdir, 'borgbackup.err.txt')
+                attachment_list.append(errfile)
+                with open(errfile, 'wb') as f:
+                    f.write(borg_results['err_bytes'])
+        if 'out_bytes' in borg_results:
+            if len(borg_results['out_bytes'] > 0):
+                outfile = os.path.join(tmpdir, 'borgbackup.out.txt')
+                attachment_list.append(outfile)
+                with open(outfile, 'wb') as f:
+                    f.write(borg_results['out_bytes'])
         # if we have prune results, attach them as well
-        if borg_results['prune_out']:
-            prune_out = os.path.join(tmpdir, 'prune.out.txt')
-            attachment_list.append(prune_out)
-            with open(prune_out, 'wb') as f:
-                f.write(borg_results['prune_out'])
-        if borg_results['prune_err']:
-            prune_err = os.path.join(tmpdir, 'prune.err.txt')
-            attachment_list.append(prune_err)
-            with open(prune_err, 'wb') as f:
-                f.write(borg_results['prune_err'])
+        if 'prune_out' in borg_results:
+            if len(borg_results['prune_out'] > 0):
+                prune_out = os.path.join(tmpdir, 'prune.out.txt')
+                attachment_list.append(prune_out)
+                with open(prune_out, 'wb') as f:
+                    f.write(borg_results['prune_out'])
+        if 'prune_err' in borg_results:
+            if len(borg_results['prune_err'] > 0):
+                prune_err = os.path.join(tmpdir, 'prune.err.txt')
+                attachment_list.append(prune_err)
+                with open(prune_err, 'wb') as f:
+                    f.write(borg_results['prune_err'])
         # send the email with attachments
         send_mail(subject, text, attachment_list)
 
