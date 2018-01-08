@@ -12,7 +12,7 @@ def readme():
 
 
 setup(
-    name='borg-slurm',
+    name='borg_slurm',
     version='0.0.1',
     description='python3 wrapper for borgbackup',
     long_description=readme(),
