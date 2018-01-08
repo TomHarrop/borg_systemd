@@ -60,7 +60,7 @@ def parse_commandline():
     parser.add_argument(
         'config',
         help=('Path to a config file.\n'
-              'Format is tab-delimited with no header.\n'
+              'Format is tab-delimited with no header.\n\n'
               'The following variables should be defined in the config file:\n'
               'BORG_BASE: working directory for running the backup\n'
               'BORG_EXCLUDE: paths to exclude (comma separated)\n'
@@ -68,7 +68,7 @@ def parse_commandline():
               'BORG_PATH: paths to archive (comma separated)\n'
               'BORG_REMOTE_PATH: borg executable on the remote\n'
               'BORG_REPO: default repository location\n'
-              'BORG_RSH: use this command instead of `ssh`'))
+              'BORG_RSH: use this command instead of `ssh`\n'))
     parser.add_argument(
         '--log',
         help=('Path to write logs (default /var/log/borg)'),
@@ -77,6 +77,39 @@ def parse_commandline():
         type=str)
     args = vars(parser.parse_args())
     return args
+
+
+def prune_backup(borg_base,
+                 job_name):
+    prune_command = list(flatten_list([
+        'salloc',
+        '--job-name={0}'.format(job_name),
+        '--cpus-per-task=1',
+        '--nice=1',
+        'borg',
+        'prune',
+        '--dry-run', '--verbose', '--list', '--stats',
+        '--keep-within=1d',
+        '--keep-daily=7',
+        '--keep-weekly=4',
+        '--keep-monthly=3']))
+    # run the subprocess
+    proc = subprocess.Popen(
+        prune_command,
+        cwd=borg_base,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE)
+    out, err = proc.communicate()
+    # get the jobid
+    job_regex = re.compile(b'\d+')
+    job_id_bytes = job_regex.search(err).group(0)
+    job_id = job_id_bytes.decode("utf-8")
+    # return useful info
+    return {
+        'job_id': job_id,
+        'return_code': proc.returncode,
+        'out_bytes': out,
+        'err_bytes': err}
 
 
 def run_backup(path_list,
@@ -95,9 +128,9 @@ def run_backup(path_list,
         '--cpus-per-task=1',
         '--nice=1',
 #        '--output={0}'.format(os.path.join(log_dir, "slurm.log.txt")),
-        'echo',
         'borg',
         'create',
+        '--verbose',
         '--compression', 'auto,lz4',
         [['--exclude', x] for x in exclude_list],
         archive_name,
@@ -110,7 +143,6 @@ def run_backup(path_list,
         stderr=subprocess.PIPE)
     out, err = proc.communicate()
     # get the jobid
-    print(out, err)
     job_regex = re.compile(b'\d+')
     job_id_bytes = job_regex.search(err).group(0)
     job_id = job_id_bytes.decode("utf-8")
@@ -120,6 +152,33 @@ def run_backup(path_list,
         'return_code': proc.returncode,
         'out_bytes': out,
         'err_bytes': err}
+
+
+def send_borg_results(borg_results, subject, text=None):
+    '''
+    Write the borg_results stderr and stdout to text files and attach to
+    send_mail with subject and text
+    '''
+    with tempfile.TemporaryDirectory() as tmpdir:
+        errfile = os.path.join(tmpdir, 'borgbackup.err.txt')
+        with open(errfile, 'wb') as f:
+            f.write(borg_results['err_bytes'])
+        outfile = os.path.join(tmpdir, 'borgbackup.out.txt')
+        with open(outfile, 'wb') as f:
+            f.write(borg_results['out_bytes'])
+        attachment_list = [errfile, outfile]
+        # if we have prune results, attach them as well
+        if borg_results['prune_out']:
+            prune_out = os.path.join(tmpdir, 'prune.out.txt')
+            attachment_list.append(prune_out)
+            with open(prune_out, 'wb') as f:
+                f.write(borg_results['prune_out'])
+        if borg_results['prune_err']:
+            prune_err = os.path.join(tmpdir, 'prune.err.txt')
+            attachment_list.append(prune_err)
+            with open(prune_err, 'wb') as f:
+                f.write(borg_results['prune_err'])
+        send_mail(subject, text, attachment_list)
 
 
 def send_mail(subject, text=None, attachment_list=None):
@@ -142,7 +201,6 @@ def set_borg_environment(config_file, allowed_variables):
     with open(config_file, 'rt') as csvfile:
         csvreader = csv.reader(csvfile, delimiter='\t')
         for row in csvreader:
-            print(row)
             if row[0] in allowed_variables:
                 os.environ[row[0]] = row[1]
             else:
@@ -207,10 +265,14 @@ def main():
         subject = ('[Tom@SLURM] Backup WARNING: '
                    'script failed with return_code {0}'.format(
                         results['return_code']))
-        send_mail(subject)
+        send_borg_results(borg_results=results, subject=subject)
         sys.exit(results['return_code'])
 
-    # run prune
+    # run prune and add results to borg results
+    prune_results = prune_backup(borg_base,
+                                 job_name)
+    results['prune_out'] = prune_results['out_bytes']
+    results['prune_err'] = prune_results['err_bytes']
 
     # list current backups
 
@@ -218,15 +280,7 @@ def main():
     subject = '[Tom@SLURM] Backup script finished at {0}'.format(end_time)
     text = ('Backups started at {0} finished. '
             'Logs are attached.'.format(start_time))
-    with tempfile.TemporaryDirectory() as tmpdir:
-        errfile = os.path.join(tmpdir, 'borgbackup.err.txt')
-        with open(errfile, 'wb') as f:
-            f.write(results['err_bytes'])
-        outfile = os.path.join(tmpdir, 'borgbackup.out.txt')
-        with open(outfile, 'wb') as f:
-            f.write(results['out_bytes'])
-        send_mail(subject, text, [errfile, outfile])
-
+    send_borg_results(borg_results=results, subject=subject, text=text)
 
 if __name__ == '__main__':
     main()
