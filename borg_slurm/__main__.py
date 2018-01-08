@@ -52,6 +52,22 @@ def now():
         second=0).isoformat('_')
 
 
+def list_borg_backups():
+    '''
+    List the backups and return a string
+    '''
+    list_command = list(flatten_list([
+        'borg',
+        'list']))
+    # run the subprocess
+    proc = subprocess.Popen(
+        list_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE)
+    out, err = proc.communicate()
+    return(out.decode())
+
+
 def parse_commandline():
     # command line arguments
     parser = argparse.ArgumentParser(
@@ -88,7 +104,7 @@ def prune_backup(borg_base,
         '--nice=1',
         'borg',
         'prune',
-        '--dry-run', '--verbose', '--list', '--stats',
+        '--verbose', '--list', '--stats',
         '--keep-within=1d',
         '--keep-daily=7',
         '--keep-weekly=4',
@@ -127,7 +143,6 @@ def run_backup(path_list,
         '--job-name={0}'.format(job_name),
         '--cpus-per-task=1',
         '--nice=1',
-#        '--output={0}'.format(os.path.join(log_dir, "slurm.log.txt")),
         'borg',
         'create',
         '--verbose',
@@ -160,13 +175,17 @@ def send_borg_results(borg_results, subject, text=None):
     send_mail with subject and text
     '''
     with tempfile.TemporaryDirectory() as tmpdir:
-        errfile = os.path.join(tmpdir, 'borgbackup.err.txt')
-        with open(errfile, 'wb') as f:
-            f.write(borg_results['err_bytes'])
-        outfile = os.path.join(tmpdir, 'borgbackup.out.txt')
-        with open(outfile, 'wb') as f:
-            f.write(borg_results['out_bytes'])
-        attachment_list = [errfile, outfile]
+        attachment_list = []
+        if borg_results['err_bytes']:
+            errfile = os.path.join(tmpdir, 'borgbackup.err.txt')
+            attachment_list.append(errfile)
+            with open(errfile, 'wb') as f:
+                f.write(borg_results['err_bytes'])
+        if borg_results['out_bytes']:
+            outfile = os.path.join(tmpdir, 'borgbackup.out.txt')
+            attachment_list.append(outfile)
+            with open(outfile, 'wb') as f:
+                f.write(borg_results['out_bytes'])
         # if we have prune results, attach them as well
         if borg_results['prune_out']:
             prune_out = os.path.join(tmpdir, 'prune.out.txt')
@@ -178,6 +197,7 @@ def send_borg_results(borg_results, subject, text=None):
             attachment_list.append(prune_err)
             with open(prune_err, 'wb') as f:
                 f.write(borg_results['prune_err'])
+        # send the email with attachments
         send_mail(subject, text, attachment_list)
 
 
@@ -275,11 +295,13 @@ def main():
     results['prune_err'] = prune_results['err_bytes']
 
     # list current backups
+    current_backups = list_borg_backups()
 
     # mail output
     subject = '[Tom@SLURM] Backup script finished at {0}'.format(end_time)
     text = ('Backups started at {0} finished. '
-            'Logs are attached.'.format(start_time))
+            'Logs are attached.\n\n'
+            'Current backups:\n{1}'.format(start_time, current_backups))
     send_borg_results(borg_results=results, subject=subject, text=text)
 
 if __name__ == '__main__':
