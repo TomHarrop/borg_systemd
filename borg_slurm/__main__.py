@@ -282,7 +282,6 @@ def main():
                          borg_base,
                          job_name,
                          log_dir)
-    end_time = now()
 
     # check if backup was successful
     if results['return_code'] != 0:
@@ -302,6 +301,7 @@ def main():
     current_backups = list_borg_backups()
 
     # mail output
+    end_time = now()
     subject = '[Tom@SLURM] Backup script finished at {0}'.format(end_time)
     text = ('Backups started at {0} finished. '
             'Logs are attached.\n\n'
