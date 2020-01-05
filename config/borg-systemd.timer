@@ -1,5 +1,5 @@
 [Unit]
-Description=Run borg-slurm every 2 hours
+Description=Run borg-systemd.service every 2 hours
 
 [Timer]
 OnStartupSec=2min

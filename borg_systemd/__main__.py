@@ -237,7 +237,7 @@ def main():
 
     # check if backup was successful
     if results['return_code'] != 0:
-        subject = ('[Tom@SLURM] Backup WARNING: '
+        subject = ('[borg-systemd] Backup WARNING: '
                    'script failed with return_code {0}'.format(
                         results['return_code']))
         send_borg_results(borg_results=results, subject=subject)
@@ -253,7 +253,7 @@ def main():
 
     # mail output
     end_time = now()
-    subject = '[Tom@SLURM] Backup script finished at {0}'.format(end_time)
+    subject = '[borg-systemd] Backup script finished at {0}'.format(end_time)
     text = ('Backups started at {0} finished. '
             'Logs are attached.\n\n'
             'Current backups:\n{1}'.format(start_time, current_backups))

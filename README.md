@@ -1,23 +1,23 @@
-# borg_slurm
+# borg_systemd
 
 python3 wrapper to run borg backup to remote repository
 
 ## Installation
 
 1. Install the borg_slurm wrapper:  
-`pip3 install git+git://github.com/tomharrop/borg_slurm.git`
+`pip3 install git+git://github.com/tomharrop/borg_systemd.git`
 2. Copy the example systemd service and replace the paths in `ExecStart` with the virtualenv where borg_slurm is installed and the config file  
-`cp config/borg-slurm.service.example config/borg-slurm.service`
+`cp config/borg-systemd.service.example config/borg-systemd.service`
 3. Install the systemd service and timer  
-`sudo cp config/borg-slurm.timer config/borg-slurm.service /etc/systemd/user/`
+`sudo cp config/borg-systemd.timer config/borg-systemd.service /etc/systemd/user/`
 4. Start the service  
-`systemctl --user enable borg-slurm.timer`  
-`systemctl --user start borg-slurm.timer`
+`systemctl --user enable borg-systemd.timer`  
+`systemctl --user start borg-systemd.timer`
 
 ## Usage
 
 ```{bash}
-usage: borg_slurm [-h] [--log LOGDIR] config
+usage: borg_systemd [-h] [--log LOGDIR] config
 
 python3 wrapper for borgbackup
 

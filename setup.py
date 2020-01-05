@@ -12,11 +12,11 @@ def readme():
 
 
 setup(
-    name='borg_slurm',
+    name='borg_systemd',
     version='0.0.2',
     description='python3 wrapper for borgbackup',
     long_description=readme(),
-    url='https://github.com/TomHarrop/borg-slurm',
+    url='https://github.com/TomHarrop/borg-systemd',
     author='Tom Harrop',
     author_email='twharrop@gmail.com',
     license='GPL-3',
@@ -25,7 +25,7 @@ setup(
                       'Cython>=0.27.3'],
     entry_points={
         'console_scripts': [
-            'borg_slurm = borg_slurm.__main__:main']},
+            'borg_systemd = borg_systemd.__main__:main']},
     package_data={
         '': ['README.rst']},
     zip_safe=False)
