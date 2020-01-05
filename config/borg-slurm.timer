@@ -1,0 +1,9 @@
+[Unit]
+Description=Run borg-slurm every 2 hours
+
+[Timer]
+OnStartupSec=2min
+OnUnitInactiveSec=2h
+
+[Install]
+WantedBy=timers.target

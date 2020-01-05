@@ -1,0 +1,6 @@
+[Unit]
+Description=Test service for borg
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c 'source /path/to/venv/bin/activate; borg_slurm /path/to/config/config.txt'
