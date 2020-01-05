@@ -5,7 +5,6 @@ import argparse
 import csv
 import datetime
 import os
-import re
 import socket
 import sys
 import subprocess
@@ -15,20 +14,6 @@ import tempfile
 #############
 # FUNCTIONS #
 #############
-
-def check_for_borg_job(job_name):
-    '''
-    Check if SLURM is currently running job_name, and return a tuple of
-    (Logical, job_id)
-    '''
-    out, err = subprocess.Popen(
-        ['squeue', '-n', job_name, '-o', '%A'],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        universal_newlines=True).communicate()
-    jobid = out.split('\n')[1]
-    return (jobid != '', jobid)
-
 
 def flatten_list(l):
     '''Works like `unlist()` in R'''
@@ -95,13 +80,8 @@ def parse_commandline():
     return args
 
 
-def prune_backup(borg_base,
-                 job_name):
+def prune_backup(borg_base):
     prune_command = list(flatten_list([
-        'salloc',
-        '--job-name={0}'.format(job_name),
-        '--cpus-per-task=1',
-        '--nice=1',
         'borg',
         'prune',
         '--verbose', '--list', '--stats',
@@ -116,13 +96,8 @@ def prune_backup(borg_base,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE)
     out, err = proc.communicate()
-    # get the jobid
-    job_regex = re.compile(b'\d+')
-    job_id_bytes = job_regex.search(err).group(0)
-    job_id = job_id_bytes.decode("utf-8")
     # return useful info
     return {
-        'job_id': job_id,
         'return_code': proc.returncode,
         'out_bytes': out,
         'err_bytes': err}
@@ -131,7 +106,6 @@ def prune_backup(borg_base,
 def run_backup(path_list,
                exclude_list,
                borg_base,
-               job_name,
                log_dir):
     '''
     Run the backup command and return a dict of job_id, stderr and stdout
@@ -139,10 +113,6 @@ def run_backup(path_list,
     # construct the borg command
     archive_name = '::{0}'.format(generate_archive_name())
     borg_command = list(flatten_list([
-        'salloc',
-        '--job-name={0}'.format(job_name),
-        '--cpus-per-task=1',
-        '--nice=1',
         'borg',
         'create',
         '--verbose',
@@ -157,13 +127,8 @@ def run_backup(path_list,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE)
     out, err = proc.communicate()
-    # get the jobid
-    job_regex = re.compile(b'\d+')
-    job_id_bytes = job_regex.search(err).group(0)
-    job_id = job_id_bytes.decode("utf-8")
     # return useful info
     return {
-        'job_id': job_id,
         'return_code': proc.returncode,
         'out_bytes': out,
         'err_bytes': err}
@@ -247,8 +212,6 @@ allowed_variables = [
     'BORG_RSH',
     ]
 
-# what to call the job on SLURM
-job_name = 'borgbackup'
 
 ########
 # MAIN #
@@ -265,22 +228,11 @@ def main():
     borg_base = os.getenv('BORG_BASE')
     log_dir = args['logdir']
 
-    # check if backup is already running
-    running_backup = check_for_borg_job(job_name)
-    if running_backup[0]:
-        subject = ('[Tom@SLURM] Backup WARNING: '
-                   'script still in squeue after two hours')
-        text = 'Job {0} found with job_id {1}'.format(
-            job_name, running_backup[1])
-        send_mail(subject, text)
-        sys.exit(0)
-
     # run backup
     start_time = now()
     results = run_backup(borg_path,
                          borg_exclude,
                          borg_base,
-                         job_name,
                          log_dir)
 
     # check if backup was successful
@@ -292,8 +244,7 @@ def main():
         sys.exit(results['return_code'])
 
     # run prune and add results to borg results
-    prune_results = prune_backup(borg_base,
-                                 job_name)
+    prune_results = prune_backup(borg_base)
     results['prune_out'] = prune_results['out_bytes']
     results['prune_err'] = prune_results['err_bytes']
 
@@ -307,6 +258,7 @@ def main():
             'Logs are attached.\n\n'
             'Current backups:\n{1}'.format(start_time, current_backups))
     send_borg_results(borg_results=results, subject=subject, text=text)
+
 
 if __name__ == '__main__':
     main()

@@ -13,7 +13,7 @@ def readme():
 
 setup(
     name='borg_slurm',
-    version='0.0.1',
+    version='0.0.2',
     description='python3 wrapper for borgbackup',
     long_description=readme(),
     url='https://github.com/TomHarrop/borg-slurm',
@@ -21,7 +21,7 @@ setup(
     author_email='twharrop@gmail.com',
     license='GPL-3',
     packages=find_packages(),
-    install_requires=['borgbackup>=1.1.3',
+    install_requires=['borgbackup>=1.1.10',
                       'Cython>=0.27.3'],
     entry_points={
         'console_scripts': [
