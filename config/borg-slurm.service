@@ -1,6 +1,0 @@
-[Unit]
-Description=Test service for borg
-
-[Service]
-Type=simple
-ExecStart=/bin/bash -c 'sleep 10m ; echo "This mail came from systemd" | mail -s "borg-test $(date)" tom'
