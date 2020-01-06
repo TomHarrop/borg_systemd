@@ -184,7 +184,7 @@ def send_mail(subject, text=None, attachment_list=None):
     if text:
         mail.communicate(input=text.encode())
     else:
-        mail.communicate()
+        mail.communicate(input='What happened to text'.encode())
 
 
 def set_borg_environment(config_file, allowed_variables):
