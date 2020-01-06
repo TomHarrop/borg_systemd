@@ -13,7 +13,7 @@ def readme():
 
 setup(
     name='borg_systemd',
-    version='0.0.2',
+    version='0.0.3',
     description='python3 wrapper for borgbackup',
     long_description=readme(),
     url='https://github.com/TomHarrop/borg-systemd',
