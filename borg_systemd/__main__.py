@@ -50,7 +50,8 @@ def list_borg_backups():
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE)
     out, err = proc.communicate()
-    return(out.decode())
+    out_err = '{0}\n\n{1}'.format(out.decode(), err.decode())
+    return(out_err)
 
 
 def parse_commandline():
