@@ -172,11 +172,13 @@ def send_borg_results(borg_results, subject, text=None):
 
 
 def send_mail(subject, text=None, attachment_list=None):
-    mail_command = ['mail', '-s', subject]
+    mail_command = ['mail', '--mime', '-s', subject]
     if attachment_list:
         for x in attachment_list:
-            mail_command.append('-A')
-            mail_command.append(x)
+            mail_command.append('--content-type=application/octet-stream')
+            mail_command.append('--attach={0}'.format(x))
+    mail_command.append('--content-type=text/plain')
+    mail_command.append('--attach=-')
     mail_command.append(socket.gethostname())
     mail = subprocess.Popen(
         mail_command,
@@ -231,23 +233,28 @@ def main():
 
     # run backup
     start_time = now()
-    results = run_backup(borg_path,
-                         borg_exclude,
-                         borg_base,
-                         log_dir)
+    # results = run_backup(borg_path,
+    #                      borg_exclude,
+    #                      borg_base,
+    #                      log_dir)
 
-    # check if backup was successful
-    if results['return_code'] != 0:
-        subject = ('[borg-systemd] Backup WARNING: '
-                   'script failed with return_code {0}'.format(
-                        results['return_code']))
-        send_borg_results(borg_results=results, subject=subject)
-        sys.exit(results['return_code'])
+    # # check if backup was successful
+    # if results['return_code'] != 0:
+    #     subject = ('[borg-systemd] Backup WARNING: '
+    #                'script failed with return_code {0}'.format(
+    #                     results['return_code']))
+    #     send_borg_results(borg_results=results, subject=subject)
+    #     sys.exit(results['return_code'])
 
-    # run prune and add results to borg results
-    prune_results = prune_backup(borg_base)
-    results['prune_out'] = prune_results['out_bytes']
-    results['prune_err'] = prune_results['err_bytes']
+    # # run prune and add results to borg results
+    # prune_results = prune_backup(borg_base)
+    # results['prune_out'] = prune_results['out_bytes']
+    # results['prune_err'] = prune_results['err_bytes']
+
+    # dummy results for debug
+    results = {}
+    results['out_bytes'] = 'why not work {0}'.format(start_time).encode()
+    results['err_bytes'] = 'second attachment'.encode()
 
     # list current backups
     current_backups = list_borg_backups()
