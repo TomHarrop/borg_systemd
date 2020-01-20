@@ -33,8 +33,7 @@ def generate_archive_name():
 
 def now():
     return datetime.datetime.now().replace(
-        microsecond=0,
-        second=0).isoformat('_')
+        microsecond=0).isoformat('_')
 
 
 def list_borg_backups():
