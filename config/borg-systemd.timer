@@ -2,7 +2,7 @@
 Description=Run borg-systemd.service every 2 hours
 
 [Timer]
-OnStartupSec=2min
+OnActiveSec=2min
 OnUnitInactiveSec=2h
 
 [Install]
