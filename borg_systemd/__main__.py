@@ -1,19 +1,35 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from email.message import EmailMessage
+from pathlib import Path
+from smtplib import SMTP
 import argparse
 import csv
 import datetime
 import os
 import socket
-import sys
 import subprocess
+import sys
 import tempfile
 
 
 #############
 # FUNCTIONS #
 #############
+
+def find_email_address():
+    my_fwd = Path(Path.home(), ".forward")
+    try:
+        with open(my_fwd, 'rt') as f:
+            my_addr = [x.rstrip('\n') for x in f.readlines()][0]
+            print(f'Sending email to {my_addr}')
+    except FileNotFoundError as e:
+        print(('Configure postfix and set up forward file at '
+               f'{my_fwd.resolve().as_posix()}'))
+        raise e
+    return my_addr
+
 
 def flatten_list(l):
     '''Works like `unlist()` in R'''
@@ -134,7 +150,7 @@ def run_backup(path_list,
         'err_bytes': err}
 
 
-def send_borg_results(borg_results, subject, text=None):
+def send_borg_results(borg_results, subject, text=None, address=None):
     '''
     Write the borg_results stderr and stdout to text files and attach to
     send_mail with subject and text
@@ -167,23 +183,31 @@ def send_borg_results(borg_results, subject, text=None):
                 with open(prune_err, 'wb') as f:
                     f.write(borg_results['prune_err'])
         # send the email with attachments
-        send_mail(subject, text, attachment_list)
+        send_mail(subject, text, attachment_list, address)
 
 
-def send_mail(subject, text=None, attachment_list=None):
-    mail_command = ['mail', '-s', subject]
+def send_mail(subject, text=None, attachment_list=None, address=None):
+    # configure email
+    email = EmailMessage()
+    email['Subject'] = subject
+    email['From'] = address
+    email['To'] = address
+    # set the body
+    email.set_content(text)
+    # add the attachments
     if attachment_list:
-        for x in attachment_list:
-            mail_command.append('-A')
-            mail_command.append(x)
-    mail_command.append(socket.gethostname())
-    mail = subprocess.Popen(
-        mail_command,
-        stdin=subprocess.PIPE)
-    if text:
-        mail.communicate(input=text.encode())
-    else:
-        mail.communicate(input='What happened to text'.encode())
+        for att in attachment_list:
+            with open(att, 'rb') as f:
+                my_attachment = f.read()
+                email.add_attachment(
+                    my_attachment,
+                    maintype='text',
+                    subtype='plain',
+                    filename=Path(att).name)
+    # send the mail
+    with SMTP() as smtp:
+        smtp.connect('localhost')
+        smtp.send_message(email)
 
 
 def set_borg_environment(config_file, allowed_variables):
@@ -252,12 +276,17 @@ def main():
     current_backups = list_borg_backups()
 
     # mail output
+    my_addr = find_email_address()
     end_time = now()
     subject = '[borg-systemd] Backup script finished at {0}'.format(end_time)
     text = ('Backups started at {0} finished. '
             'Logs are attached.\n\n'
             'Current backups:\n{1}'.format(start_time, current_backups))
-    send_borg_results(borg_results=results, subject=subject, text=text)
+    send_borg_results(
+        borg_results=results,
+        subject=subject,
+        text=text,
+        address=my_addr)
 
 
 if __name__ == '__main__':
