@@ -39,7 +39,18 @@ Usage
                    BORG_REMOTE_PATH: borg executable on the remote
                    BORG_REPO: default repository location
                    BORG_RSH: use this command instead of `ssh`
+                   BORG_HOST_ID: use this to fix the ID of the lock file
 
    optional arguments:
      -h, --help    show this help message and exit
      --log LOGDIR  Path to write logs (default /var/log/borg)
+
+Note: locking issues
+~~~~~~~~~~~~~~~~~~~~
+
+Borg uses
+```uuid.getnode()`` <https://docs.python.org/3/library/uuid.html#uuid.getnode>`__
+to generate a unique identifier for the lock file. This doesn’t always
+seem to be unique. Override it with the environment variable
+``BORG_HOST_ID`` in the config file, e.g. using the value of
+``/var/lib/dbus/machine-id``.
