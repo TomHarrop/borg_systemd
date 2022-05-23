@@ -259,12 +259,20 @@ def main():
                          borg_base,
                          log_dir)
 
+    # get email address
+    my_addr = find_email_address()
+
     # check if backup was successful
     if results['return_code'] != 0:
         subject = ('[borg-systemd] Backup WARNING: '
                    'script failed with return_code {0}'.format(
                         results['return_code']))
-        send_borg_results(borg_results=results, subject=subject)
+        text = 'Backups started at {0} failed.'.format(start_time)
+        send_borg_results(
+            borg_results=results,
+            subject=subject,
+            text=text,
+            address=my_addr)
         sys.exit(results['return_code'])
 
     # run prune and add results to borg results
@@ -276,7 +284,6 @@ def main():
     current_backups = list_borg_backups()
 
     # mail output
-    my_addr = find_email_address()
     end_time = now()
     subject = '[borg-systemd] Backup script finished at {0}'.format(end_time)
     text = ('Backups started at {0} finished. '

@@ -1,5 +1,7 @@
 [Unit]
 Description=Run borg-systemd.service every 2 hours
+Requires=rclone_borg.service
+After=rclone_borg.service
 
 [Timer]
 OnActiveSec=2min
