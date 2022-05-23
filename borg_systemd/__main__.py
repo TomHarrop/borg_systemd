@@ -85,7 +85,8 @@ def parse_commandline():
               'BORG_PATH: paths to archive (comma separated)\n'
               'BORG_REMOTE_PATH: borg executable on the remote\n'
               'BORG_REPO: default repository location\n'
-              'BORG_RSH: use this command instead of `ssh`\n'))
+              'BORG_RSH: use this command instead of `ssh`\n'
+              'BORG_HOST_ID: use this to fix the ID of the lock file\n'))
     parser.add_argument(
         '--log',
         help=('Path to write logs (default /var/log/borg)'),
@@ -101,6 +102,7 @@ def prune_backup(borg_base):
         'borg',
         'prune',
         '--verbose', '--list', '--stats',
+        '--lock-wait', '600',
         '--keep-within=1d',
         '--keep-daily=7',
         '--keep-weekly=4',
@@ -133,6 +135,7 @@ def run_backup(path_list,
         'create',
         '--verbose',
         '--compression', 'auto,lz4',
+        '--lock-wait', '600',
         [['--exclude', x] for x in exclude_list],
         archive_name,
         [x for x in path_list]]))
@@ -234,6 +237,7 @@ allowed_variables = [
     'BORG_REMOTE_PATH',
     'BORG_REPO',
     'BORG_RSH',
+    'BORG_HOST_ID'
     ]
 
 
