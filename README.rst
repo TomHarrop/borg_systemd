@@ -54,3 +54,10 @@ to generate a unique identifier for the lock file. This doesn’t always
 seem to be unique. Override it with the environment variable
 ``BORG_HOST_ID`` in the config file, e.g. using the value of
 ``/var/lib/dbus/machine-id``.
+
+Note: rclone
+~~~~~~~~~~~~
+
+If you’re backing up to a remote mounted with ``rclone``, the cache can
+cause issues with locking. Right now it’s working for me with
+``--vfs-cache-mode writes``.
