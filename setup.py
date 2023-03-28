@@ -21,8 +21,9 @@ setup(
     author_email='twharrop@gmail.com',
     license='GPL-3',
     packages=find_packages(),
-    install_requires=['borgbackup>=1.1.10',
-                      'Cython>=0.27.3'],
+    install_requires=[
+        'Cython>=0.27.3',
+        'borgbackup>=1.1.10'],
     entry_points={
         'console_scripts': [
             'borg_systemd = borg_systemd.__main__:main']},

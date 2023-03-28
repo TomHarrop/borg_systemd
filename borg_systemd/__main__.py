@@ -7,6 +7,8 @@ from smtplib import SMTP
 import argparse
 import csv
 import datetime
+import logging
+from logging.handlers import RotatingFileHandler
 import os
 import socket
 import subprocess
@@ -18,15 +20,30 @@ import tempfile
 # FUNCTIONS #
 #############
 
+def config_log(log_dir, level=logging.INFO):
+    logfile = Path(log_dir, 'borg_backup.log')
+    handler = RotatingFileHandler(
+        logfile,
+        maxBytes=1000000,
+        backupCount=5)
+    handler.setLevel(level)
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)-8s %(message)s'))
+    logger = logging.getLogger()
+    logger.addHandler(handler)
+    logger.setLevel(level)
+
+
 def find_email_address():
     my_fwd = Path(Path.home(), ".forward")
     try:
         with open(my_fwd, 'rt') as f:
             my_addr = [x.rstrip('\n') for x in f.readlines()][0]
-            print(f'Sending email to {my_addr}')
+            logging.info(f'Sending email to {my_addr}')
     except FileNotFoundError as e:
-        print(('Configure postfix and set up forward file at '
-               f'{my_fwd.resolve().as_posix()}'))
+        logging.info(
+            ('Configure postfix and set up forward file at '
+             f'{my_fwd.resolve().as_posix()}'))
         raise e
     return my_addr
 
@@ -59,6 +76,8 @@ def list_borg_backups():
     list_command = list(flatten_list([
         'borg',
         'list']))
+    logging.debug('list_command:')
+    logging.debug(list_command)
     # run the subprocess
     proc = subprocess.Popen(
         list_command,
@@ -107,6 +126,8 @@ def prune_backup(borg_base):
         '--keep-daily=7',
         '--keep-weekly=4',
         '--keep-monthly=3']))
+    logging.debug('prune_command:')
+    logging.debug(prune_command)
     # run the subprocess
     proc = subprocess.Popen(
         prune_command,
@@ -123,8 +144,7 @@ def prune_backup(borg_base):
 
 def run_backup(path_list,
                exclude_list,
-               borg_base,
-               log_dir):
+               borg_base):
     '''
     Run the backup command and return a dict of job_id, stderr and stdout
     '''
@@ -139,6 +159,8 @@ def run_backup(path_list,
         [['--exclude', x] for x in exclude_list],
         archive_name,
         [x for x in path_list]]))
+    logging.debug('borg_command:')
+    logging.debug(borg_command)
     # run the subprocess
     proc = subprocess.Popen(
         borg_command,
@@ -197,8 +219,12 @@ def send_mail(subject, text=None, attachment_list=None, address=None):
     email['To'] = address
     # set the body
     email.set_content(text)
+    # log the email in case it doesn't send
+    logging.debug(email.as_string())
     # add the attachments
     if attachment_list:
+        logging.debug('attachment_list:')
+        logging.debug(attachment_list)
         for att in attachment_list:
             with open(att, 'rb') as f:
                 my_attachment = f.read()
@@ -246,8 +272,8 @@ allowed_variables = [
 ########
 
 def main():
+    # set the borg environment
     args = parse_commandline()
-
     set_borg_environment(args['config'], allowed_variables)
 
     # variables for run_backup
@@ -256,17 +282,30 @@ def main():
     borg_base = os.getenv('BORG_BASE')
     log_dir = args['logdir']
 
+    # set up the log
+    config_log(log_dir=log_dir, level=logging.DEBUG)
+
     # run backup
     start_time = now()
+    logging.info("Starting backup")
     results = run_backup(borg_path,
                          borg_exclude,
-                         borg_base,
-                         log_dir)
+                         borg_base)
+
+    # debug backup
+    for result in ['out_bytes', 'err_bytes']:
+        result_bytes = results[result]
+        if isinstance(result_bytes, bytes) and len(result_bytes) > 0:
+            logging.debug(f'run_backup {result}')
+            logging.debug(result_bytes.decode('utf-8'))
+        else:
+            logging.debug(f'run_backup did not return any {result}')
 
     # get email address
     my_addr = find_email_address()
 
     # check if backup was successful
+    logging.info("Checking results")
     if results['return_code'] != 0:
         subject = ('[borg-systemd] Backup WARNING: '
                    'script failed with return_code {0}'.format(
@@ -280,14 +319,26 @@ def main():
         sys.exit(results['return_code'])
 
     # run prune and add results to borg results
+    logging.info("Starting prune")
     prune_results = prune_backup(borg_base)
     results['prune_out'] = prune_results['out_bytes']
     results['prune_err'] = prune_results['err_bytes']
 
+    # debug prune
+    for result in ['prune_out', 'prune_err']:
+        result_bytes = results[result]
+        if isinstance(result_bytes, bytes) and len(result_bytes) > 0:
+            logging.debug(f'run_backup {result}')
+            logging.debug(result_bytes.decode('utf-8'))
+        else:
+            logging.debug(f'run_backup did not return any {result}')
+
     # list current backups
+    logging.info("Listing current backups")
     current_backups = list_borg_backups()
 
     # mail output
+    logging.info("Emailing results")
     end_time = now()
     subject = '[borg-systemd] Backup script finished at {0}'.format(end_time)
     text = ('Backups started at {0} finished. '
