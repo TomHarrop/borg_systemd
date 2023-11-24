@@ -40,6 +40,16 @@ optional arguments:
   --log LOGDIR  Path to write logs (default /var/log/borg)
 ```
 
+### Note: flaky network mounts
+
+If network mounts are sometimes flaking out, you can make the service check the path before firing by adding the following to the `[Unit]` section:
+
+```{bash}
+ConditionPathExists=/path/to/backup
+```
+
+The same line could be used in the timer file alternatively (or additionally) to stop the timer from firing the service.
+
 ### Note: locking issues
 
 Borg uses [`uuid.getnode()`](https://docs.python.org/3/library/uuid.html#uuid.getnode) to generate a unique identifier for the lock file.
